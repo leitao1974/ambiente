@@ -3,8 +3,7 @@
 def get_library():
     """
     SUPER BASE DE DADOS LEGISLATIVA (MASTER MERGE)
-    Integra Regimes de Licenciamento (Blindada) + Leis Estratégicas e Climáticas (V1).
-    Focada em Compliance e Metas Nacionais/UE.
+    Focada em Ambiente, Agricultura, Clima e Licenciamento.
     """
     return {
         "0. ESTRATÉGIA, CLIMA & BIODIVERSIDADE (Meta-Legislação)": {
