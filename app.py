@@ -22,6 +22,16 @@ st.set_page_config(
     layout="wide"
 )
 
+# --- GESTÃO DE ESTADO (SESSION STATE) ---
+# Inicializa uma chave única para o uploader se não existir
+if 'uploader_key' not in st.session_state:
+    st.session_state.uploader_key = 0
+
+def limpar_dados():
+    """Função para limpar os ficheiros e reiniciar a app"""
+    st.session_state.uploader_key += 1 # Ao mudar a chave, o widget reinicia
+    st.rerun()
+
 # --- ESTILO CSS ---
 st.markdown("""
 <style>
@@ -43,7 +53,7 @@ with col1:
     st.markdown("# 🌿")
 with col2:
     st.title("Análise Ambiental")
-    st.caption("Protocolo PATE v4.0 | Compliance, EIA e Sustentabilidade")
+    st.caption("Protocolo PATE v4.1 | Compliance, EIA e Sustentabilidade | Limpeza Automática")
 
 # --- SIDEBAR: CONFIGURAÇÃO ---
 with st.sidebar:
@@ -63,7 +73,7 @@ with st.sidebar:
     library_context = ""
     active_laws_count = 0
     
-    # Gerar Checkboxes dinâmicos baseados no ficheiro legislacao.py
+    # Gerar Checkboxes dinâmicos
     for category, laws in library.items():
         with st.expander(f"📂 {category}", expanded=False):
             for law_name, details in laws.items():
@@ -79,12 +89,22 @@ with st.sidebar:
     st.divider()
     
     st.header("🌐 3. Fontes Externas")
-    # Upload Manual
-    uploaded_legal_docs = st.file_uploader("Upload PDFs Adicionais (ex: PDMs)", type="pdf", accept_multiple_files=True)
+    # Upload Manual (Usa a chave dinâmica para permitir reset)
+    uploaded_legal_docs = st.file_uploader(
+        "Upload PDFs Adicionais", 
+        type="pdf", 
+        accept_multiple_files=True,
+        key=f"legal_uploader_{st.session_state.uploader_key}"
+    )
     
     # Pesquisa Web
     search_query = st.text_input("Pesquisa Web Adicional", placeholder="Ex: Portaria n.º 123/2024")
     use_web_search = st.checkbox("Ativar Pesquisa Online", value=True)
+    
+    st.divider()
+    # Botão de Limpeza na Sidebar também
+    if st.button("🗑️ Limpar Tudo"):
+        limpar_dados()
 
 # --- FUNÇÕES ---
 
@@ -108,15 +128,12 @@ def search_online(query):
     
     try:
         with DDGS() as ddgs:
-            # Pesquisa focada em documentos legais
             results = list(ddgs.text(f"{query} legislação texto oficial", max_results=2))
         
         for r in results:
             try:
-                # Timeout curto para não bloquear a app
                 page = requests.get(r['href'], timeout=4)
                 soup = BeautifulSoup(page.content, 'html.parser')
-                # Extrair parágrafos
                 text = "\n".join([p.text for p in soup.find_all('p')])[:3000]
                 results_text += f"\n>>> FONTE ONLINE: {r['title']} ({r['href']}) <<<\n{text}\n"
             except:
@@ -156,7 +173,6 @@ def run_pate_audit(target_text, lib_ctx, manual_ctx, web_ctx, api_key):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-1.5-flash')
     
-    # Construção do Contexto Legal Combinado
     full_legal_context = ""
     if lib_ctx:
         full_legal_context += f"\n=== BIBLIOTECA LEGISLATIVA ATIVADA ===\n{lib_ctx}"
@@ -203,7 +219,13 @@ def run_pate_audit(target_text, lib_ctx, manual_ctx, web_ctx, api_key):
 
 # --- ÁREA PRINCIPAL ---
 st.subheader("📄 Documento Alvo")
-uploaded_target = st.file_uploader("Carrega o Relatório Técnico/EIA/Plano", type="pdf")
+
+# O Uploader Principal agora tem uma KEY DINÂMICA
+uploaded_target = st.file_uploader(
+    "Carrega o Relatório Técnico/EIA/Plano", 
+    type="pdf",
+    key=f"main_uploader_{st.session_state.uploader_key}"
+)
 
 if uploaded_target and api_key:
     if st.button("🚀 EXECUTAR ANÁLISE AMBIENTAL", type="primary"):
@@ -229,6 +251,14 @@ if uploaded_target and api_key:
                 # 5. Apresentar Resultados
                 st.success("Análise Concluída.")
                 
+                # BOTÃO DE LIMPEZA EM DESTAQUE
+                st.info("⚠️ A análise terminou. Podes descarregar os resultados e depois limpar os dados por segurança.")
+                
+                col_clean1, col_clean2 = st.columns([1,3])
+                with col_clean1:
+                    if st.button("🧹 LIMPAR DADOS AGORA", type="secondary"):
+                        limpar_dados()
+
                 tab1, tab2 = st.tabs(["📝 Relatório Visual", "💾 Exportar"])
                 
                 with tab1:
@@ -255,3 +285,7 @@ if uploaded_target and api_key:
 
 elif not uploaded_target:
     st.info("A aguardar documento...")
+    # Se quiseres um botão para limpar mesmo sem documento (caso tenha ficado algo pendente)
+    if st.session_state.uploader_key > 0:
+         if st.button("Reset Total"):
+             limpar_dados()
