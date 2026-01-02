@@ -17,8 +17,8 @@ except ImportError:
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Auditor de Políticas Públicas & Compliance",
-    page_icon="⚖️",
+    page_title="Análise Ambiental IA",
+    page_icon="🌿",
     layout="wide"
 )
 
@@ -32,7 +32,7 @@ st.markdown("""
         font-weight: bold;
     }
     .reportview-container { margin-top: -2em; }
-    h1 { color: #2c3e50; }
+    h1 { color: #2e7d32; } /* Verde Ambiental */
     .stExpander { border: 1px solid #ddd; border-radius: 5px; }
 </style>
 """, unsafe_allow_html=True)
@@ -40,10 +40,10 @@ st.markdown("""
 # --- CABEÇALHO ---
 col1, col2 = st.columns([1, 6])
 with col1:
-    st.markdown("# ⚖️")
+    st.markdown("# 🌿")
 with col2:
     st.title("Análise Ambiental")
-    st.caption("Protocolo PATE v4.0 | Biblioteca Legislativa Residente & Pesquisa Web")
+    st.caption("Protocolo PATE v4.0 | Compliance, EIA e Sustentabilidade")
 
 # --- SIDEBAR: CONFIGURAÇÃO ---
 with st.sidebar:
@@ -56,8 +56,8 @@ with st.sidebar:
     st.divider()
     
     # --- BIBLIOTECA LEGISLATIVA DINÂMICA ---
-    st.header("📚 2. Biblioteca Legislativa")
-    st.info("Ativa os regimes legais aplicáveis à análise:")
+    st.header("📚 2. Legislação Ambiental")
+    st.info("Ativa os regimes legais aplicáveis:")
     
     library = legislacao.get_library()
     library_context = ""
@@ -80,7 +80,7 @@ with st.sidebar:
     
     st.header("🌐 3. Fontes Externas")
     # Upload Manual
-    uploaded_legal_docs = st.file_uploader("Upload PDFs Adicionais", type="pdf", accept_multiple_files=True)
+    uploaded_legal_docs = st.file_uploader("Upload PDFs Adicionais (ex: PDMs)", type="pdf", accept_multiple_files=True)
     
     # Pesquisa Web
     search_query = st.text_input("Pesquisa Web Adicional", placeholder="Ex: Portaria n.º 123/2024")
@@ -131,7 +131,7 @@ def search_online(query):
 def create_docx(markdown_text):
     """Gera ficheiro Word formatado."""
     doc = Document()
-    doc.add_heading('Relatório de Auditoria de Compliance', 0)
+    doc.add_heading('Relatório de Análise Ambiental', 0)
     
     for line in markdown_text.split('\n'):
         line = line.strip()
@@ -166,34 +166,34 @@ def run_pate_audit(target_text, lib_ctx, manual_ctx, web_ctx, api_key):
         full_legal_context += f"\n=== PESQUISA WEB ===\n{web_ctx}"
 
     prompt = f"""
-    Atua como um **Consultor Sénior em Políticas Públicas e Jurídico**.
-    Realiza uma AUDITORIA DE COMPLIANCE E ESTRATÉGIA ao documento fornecido.
+    Atua como um **Consultor Sénior em Ambiente, Estratégia e Ordenamento**.
+    Realiza uma ANÁLISE TÉCNICA E JURÍDICA (Protocolo PATE) ao documento fornecido.
 
     --- BASE DE CONFORMIDADE LEGAL (A TUA "VERDADE") ---
     {full_legal_context}
     ----------------------------------------------------
 
-    Executa estritamente o PROTOCOLO PATE (v4.0):
+    Executa estritamente o PROTOCOLO DE ANÁLISE:
 
     ## 1. RESUMO EXECUTIVO
     * Enquadramento do documento alvo (Objetivos, Autores, Data).
-    * Estatuto de maturidade (Draft vs Final).
+    * Maturidade do projeto/plano.
 
-    ## 2. CHECK-UP DE CONFORMIDADE (CRUCIAL)
-    * Cruza as medidas propostas no documento alvo com os mandatos da 'Biblioteca Legislativa'.
-    * Identifica explicitamente: **"A medida X alinha-se com a Lei Y"** ou **"A medida Z parece violar o Regulamento W"**.
-    * Se não houver legislação ativada, foca-te na consistência interna.
+    ## 2. CHECK-UP DE CONFORMIDADE E LICENCIAMENTO
+    * Cruza as medidas do documento com a 'Biblioteca Legislativa'.
+    * Verifica questões críticas: **RAN/REN**, **Rede Natura 2000**, **Recursos Hídricos** e **AIA**.
+    * Cita explicitamente: "A medida X alinha-se com o diploma Y" ou "Atenção: potencial conflito com Z".
 
-    ## 3. AUDITORIA DE EXEQUIBILIDADE
-    * Avalia a robustez dos dados (ex: uso de proxies vs dados reais).
-    * Avalia a segurança do financiamento e a capacidade operacional (recursos humanos).
+    ## 3. ANÁLISE DE EXEQUIBILIDADE E DADOS
+    * Avalia a qualidade da informação de base (ex: há dados de campo ou são estimativas?).
+    * Avalia a viabilidade técnica das medidas propostas.
 
     ## 4. ANÁLISE DE RISCO
-    * Riscos Regionais (ex: assimetrias Ilhas/Continente).
-    * Riscos Jurídicos (ex: litigância potencial).
+    * Riscos Ambientais (ex: impacto na biodiversidade, água).
+    * Riscos de Procedimento (ex: necessidade de AIA ou AAE não identificada).
 
-    ## 5. RECOMENDAÇÕES (ACTIONABLE INSIGHTS)
-    * 3 a 5 medidas corretivas concretas, baseadas na melhor técnica e na lei.
+    ## 5. RECOMENDAÇÕES TÉCNICAS
+    * 3 a 5 medidas corretivas concretas para garantir a aprovação e sustentabilidade do projeto.
 
     --- DOCUMENTO ALVO ---
     {target_text}
@@ -203,11 +203,11 @@ def run_pate_audit(target_text, lib_ctx, manual_ctx, web_ctx, api_key):
 
 # --- ÁREA PRINCIPAL ---
 st.subheader("📄 Documento Alvo")
-uploaded_target = st.file_uploader("Carrega o Relatório/Plano para análise", type="pdf")
+uploaded_target = st.file_uploader("Carrega o Relatório Técnico/EIA/Plano", type="pdf")
 
 if uploaded_target and api_key:
-    if st.button("🚀 EXECUTAR AUDITORIA", type="primary"):
-        with st.spinner("A processar documentos e a cruzar dados..."):
+    if st.button("🚀 EXECUTAR ANÁLISE AMBIENTAL", type="primary"):
+        with st.spinner("A processar documentos e a cruzar conformidade legal..."):
             try:
                 # 1. Ler Documento Alvo
                 target_txt = get_pdf_text(uploaded_target)
@@ -240,19 +240,18 @@ if uploaded_target and api_key:
                     st.download_button(
                         label="📄 Descarregar Word (.docx)",
                         data=docx,
-                        file_name=f"Auditoria_{uploaded_target.name}.docx",
+                        file_name=f"Analise_Ambiental_{uploaded_target.name}.docx",
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     )
                     
                     st.download_button(
                         label="📥 Descarregar Markdown (.md)",
                         data=result,
-                        file_name=f"Auditoria_{uploaded_target.name}.md"
+                        file_name=f"Analise_Ambiental_{uploaded_target.name}.md"
                     )
 
             except Exception as e:
                 st.error(f"Ocorreu um erro: {e}")
 
 elif not uploaded_target:
-
     st.info("A aguardar documento...")
