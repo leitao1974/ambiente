@@ -42,7 +42,7 @@ col1, col2 = st.columns([1, 6])
 with col1:
     st.markdown("# ⚖️")
 with col2:
-    st.title("Auditor de Políticas Públicas (Pro)")
+    st.title("Análise Ambiental")
     st.caption("Protocolo PATE v4.0 | Biblioteca Legislativa Residente & Pesquisa Web")
 
 # --- SIDEBAR: CONFIGURAÇÃO ---
@@ -254,4 +254,5 @@ if uploaded_target and api_key:
                 st.error(f"Ocorreu um erro: {e}")
 
 elif not uploaded_target:
+
     st.info("A aguardar documento...")
