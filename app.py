@@ -23,13 +23,12 @@ st.set_page_config(
 )
 
 # --- GESTÃO DE ESTADO (SESSION STATE) ---
-# Inicializa uma chave única para o uploader se não existir
 if 'uploader_key' not in st.session_state:
     st.session_state.uploader_key = 0
 
 def limpar_dados():
     """Função para limpar os ficheiros e reiniciar a app"""
-    st.session_state.uploader_key += 1 # Ao mudar a chave, o widget reinicia
+    st.session_state.uploader_key += 1
     st.rerun()
 
 # --- ESTILO CSS ---
@@ -42,7 +41,7 @@ st.markdown("""
         font-weight: bold;
     }
     .reportview-container { margin-top: -2em; }
-    h1 { color: #2e7d32; } /* Verde Ambiental */
+    h1 { color: #2e7d32; }
     .stExpander { border: 1px solid #ddd; border-radius: 5px; }
 </style>
 """, unsafe_allow_html=True)
@@ -53,13 +52,49 @@ with col1:
     st.markdown("# 🌿")
 with col2:
     st.title("Análise Ambiental")
-    st.caption("Protocolo PATE v4.1 | Compliance, EIA e Sustentabilidade | Limpeza Automática")
+    st.caption("Protocolo PATE v4.2 | Compliance, EIA e Sustentabilidade | Seletor de Modelos")
+
+# --- FUNÇÃO PARA LISTAR MODELOS ---
+def get_available_models(api_key):
+    """Obtém lista de modelos disponíveis na API Key do utilizador."""
+    try:
+        genai.configure(api_key=api_key)
+        models = []
+        for m in genai.list_models():
+            # Filtra apenas modelos que geram texto (chat)
+            if 'generateContent' in m.supported_generation_methods:
+                models.append(m.name)
+        return models
+    except Exception as e:
+        return []
 
 # --- SIDEBAR: CONFIGURAÇÃO ---
 with st.sidebar:
     st.header("⚙️ 1. Motor de IA")
     api_key = st.text_input("Google Gemini API Key", type="password")
-    if not api_key:
+    
+    selected_model = "models/gemini-1.5-flash" # Default fallback
+    
+    if api_key:
+        # Seletor de Modelo
+        available_models = get_available_models(api_key)
+        if available_models:
+            # Tenta encontrar o flash para ser o default, senão usa o primeiro da lista
+            default_index = 0
+            for i, m in enumerate(available_models):
+                if "flash" in m:
+                    default_index = i
+                    break
+            
+            selected_model = st.selectbox(
+                "Modelo Selecionado:", 
+                available_models, 
+                index=default_index
+            )
+            st.caption(f"A usar: {selected_model}")
+        else:
+            st.error("Chave inválida ou sem acesso a modelos.")
+    else:
         st.warning("Insere a chave para iniciar.")
         st.markdown("[Obter chave gratuita](https://aistudio.google.com/)")
     
@@ -73,7 +108,6 @@ with st.sidebar:
     library_context = ""
     active_laws_count = 0
     
-    # Gerar Checkboxes dinâmicos
     for category, laws in library.items():
         with st.expander(f"📂 {category}", expanded=False):
             for law_name, details in laws.items():
@@ -89,7 +123,6 @@ with st.sidebar:
     st.divider()
     
     st.header("🌐 3. Fontes Externas")
-    # Upload Manual (Usa a chave dinâmica para permitir reset)
     uploaded_legal_docs = st.file_uploader(
         "Upload PDFs Adicionais", 
         type="pdf", 
@@ -97,19 +130,16 @@ with st.sidebar:
         key=f"legal_uploader_{st.session_state.uploader_key}"
     )
     
-    # Pesquisa Web
     search_query = st.text_input("Pesquisa Web Adicional", placeholder="Ex: Portaria n.º 123/2024")
     use_web_search = st.checkbox("Ativar Pesquisa Online", value=True)
     
     st.divider()
-    # Botão de Limpeza na Sidebar também
     if st.button("🗑️ Limpar Tudo"):
         limpar_dados()
 
 # --- FUNÇÕES ---
 
 def get_pdf_text(pdf_file):
-    """Extrai texto de PDF com tratamento de erros."""
     text = ""
     try:
         reader = PdfReader(pdf_file)
@@ -120,25 +150,20 @@ def get_pdf_text(pdf_file):
     return text
 
 def search_online(query):
-    """Pesquisa no DuckDuckGo e extrai conteúdo."""
     if not query: return ""
     results_text = ""
     status = st.empty()
     status.info(f"🔎 A pesquisar: '{query}'...")
-    
     try:
         with DDGS() as ddgs:
             results = list(ddgs.text(f"{query} legislação texto oficial", max_results=2))
-        
         for r in results:
             try:
                 page = requests.get(r['href'], timeout=4)
                 soup = BeautifulSoup(page.content, 'html.parser')
                 text = "\n".join([p.text for p in soup.find_all('p')])[:3000]
                 results_text += f"\n>>> FONTE ONLINE: {r['title']} ({r['href']}) <<<\n{text}\n"
-            except:
-                continue
-        
+            except: continue
         status.empty()
         return results_text
     except Exception as e:
@@ -146,40 +171,33 @@ def search_online(query):
         return ""
 
 def create_docx(markdown_text):
-    """Gera ficheiro Word formatado."""
     doc = Document()
     doc.add_heading('Relatório de Análise Ambiental', 0)
-    
     for line in markdown_text.split('\n'):
         line = line.strip()
         if not line: continue
-        
         if line.startswith('# '): doc.add_heading(line[2:], 1)
         elif line.startswith('## '): doc.add_heading(line[3:], 2)
         elif line.startswith('### '): doc.add_heading(line[4:], 3)
-        elif line.startswith('- ') or line.startswith('* '): 
-            doc.add_paragraph(line[2:], style='List Bullet')
-        else:
-            clean_text = line.replace('**', '').replace('__', '')
-            doc.add_paragraph(clean_text)
-            
+        elif line.startswith('- ') or line.startswith('* '): doc.add_paragraph(line[2:], style='List Bullet')
+        else: doc.add_paragraph(line.replace('**', '').replace('__', ''))
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
     return buffer
 
-def run_pate_audit(target_text, lib_ctx, manual_ctx, web_ctx, api_key):
-    """Executa o Protocolo PATE via Gemini."""
+# --- FUNÇÃO PRINCIPAL DE ANÁLISE ---
+def run_pate_audit(target_text, lib_ctx, manual_ctx, web_ctx, api_key, model_name):
+    """Executa a análise usando o modelo escolhido pelo utilizador."""
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # USA O MODELO SELECIONADO NA SIDEBAR
+    model = genai.GenerativeModel(model_name)
     
     full_legal_context = ""
-    if lib_ctx:
-        full_legal_context += f"\n=== BIBLIOTECA LEGISLATIVA ATIVADA ===\n{lib_ctx}"
-    if manual_ctx:
-        full_legal_context += f"\n=== LEGISLAÇÃO CARREGADA MANUALMENTE ===\n{manual_ctx[:20000]}"
-    if web_ctx:
-        full_legal_context += f"\n=== PESQUISA WEB ===\n{web_ctx}"
+    if lib_ctx: full_legal_context += f"\n=== BIBLIOTECA LEGISLATIVA ATIVADA ===\n{lib_ctx}"
+    if manual_ctx: full_legal_context += f"\n=== LEGISLAÇÃO CARREGADA MANUALMENTE ===\n{manual_ctx[:20000]}"
+    if web_ctx: full_legal_context += f"\n=== PESQUISA WEB ===\n{web_ctx}"
 
     prompt = f"""
     Atua como um **Consultor Sénior em Ambiente, Estratégia e Ordenamento**.
@@ -220,7 +238,6 @@ def run_pate_audit(target_text, lib_ctx, manual_ctx, web_ctx, api_key):
 # --- ÁREA PRINCIPAL ---
 st.subheader("📄 Documento Alvo")
 
-# O Uploader Principal agora tem uma KEY DINÂMICA
 uploaded_target = st.file_uploader(
     "Carrega o Relatório Técnico/EIA/Plano", 
     type="pdf",
@@ -229,31 +246,25 @@ uploaded_target = st.file_uploader(
 
 if uploaded_target and api_key:
     if st.button("🚀 EXECUTAR ANÁLISE AMBIENTAL", type="primary"):
-        with st.spinner("A processar documentos e a cruzar conformidade legal..."):
+        with st.spinner(f"A analisar com o modelo {selected_model}..."):
             try:
-                # 1. Ler Documento Alvo
+                # 1. Pipeline de Texto
                 target_txt = get_pdf_text(uploaded_target)
                 
-                # 2. Ler Uploads Manuais
                 manual_ctx = ""
                 if uploaded_legal_docs:
-                    for f in uploaded_legal_docs:
-                        manual_ctx += get_pdf_text(f)
+                    for f in uploaded_legal_docs: manual_ctx += get_pdf_text(f)
                 
-                # 3. Pesquisa Web
                 web_ctx = ""
-                if use_web_search and search_query:
-                    web_ctx = search_online(search_query)
+                if use_web_search and search_query: web_ctx = search_online(search_query)
                 
-                # 4. Executar IA
-                result = run_pate_audit(target_txt, library_context, manual_ctx, web_ctx, api_key)
+                # 2. Executar IA (Passando o nome do modelo)
+                result = run_pate_audit(target_txt, library_context, manual_ctx, web_ctx, api_key, selected_model)
                 
-                # 5. Apresentar Resultados
+                # 3. Resultados
                 st.success("Análise Concluída.")
                 
-                # BOTÃO DE LIMPEZA EM DESTAQUE
-                st.info("⚠️ A análise terminou. Podes descarregar os resultados e depois limpar os dados por segurança.")
-                
+                # Área de Limpeza
                 col_clean1, col_clean2 = st.columns([1,3])
                 with col_clean1:
                     if st.button("🧹 LIMPAR DADOS AGORA", type="secondary"):
@@ -261,31 +272,16 @@ if uploaded_target and api_key:
 
                 tab1, tab2 = st.tabs(["📝 Relatório Visual", "💾 Exportar"])
                 
-                with tab1:
-                    st.markdown(result)
+                with tab1: st.markdown(result)
                 
                 with tab2:
-                    st.info("Descarrega o relatório editável.")
+                    st.info("Descarrega o relatório.")
                     docx = create_docx(result)
-                    st.download_button(
-                        label="📄 Descarregar Word (.docx)",
-                        data=docx,
-                        file_name=f"Analise_Ambiental_{uploaded_target.name}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    )
-                    
-                    st.download_button(
-                        label="📥 Descarregar Markdown (.md)",
-                        data=result,
-                        file_name=f"Analise_Ambiental_{uploaded_target.name}.md"
-                    )
+                    st.download_button("📄 Word (.docx)", docx, f"Analise_{uploaded_target.name}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                    st.download_button("📥 Markdown (.md)", result, f"Analise_{uploaded_target.name}.md")
 
             except Exception as e:
-                st.error(f"Ocorreu um erro: {e}")
+                st.error(f"Erro na execução: {e}")
 
 elif not uploaded_target:
     st.info("A aguardar documento...")
-    # Se quiseres um botão para limpar mesmo sem documento (caso tenha ficado algo pendente)
-    if st.session_state.uploader_key > 0:
-         if st.button("Reset Total"):
-             limpar_dados()
